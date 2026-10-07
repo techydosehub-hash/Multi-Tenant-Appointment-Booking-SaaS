@@ -12,6 +12,8 @@ export function AppProvider({ children }) {
     [loading, setLoading] = useState(true),
     [memberships, setMemberships] = useState([]),
     [profile, setProfile] = useState(null),
+    [demo, setDemo] = useState(null),
+    [guest, setGuest] = useState(false),
     [businessId, setBusinessId] = useState(
       localStorage.getItem("steadly_business") || "",
     ),
@@ -22,14 +24,18 @@ export function AppProvider({ children }) {
       setError("");
       const data = await api("/me");
       setProfile(data.user);
+      setDemo(data.demo);
+      setGuest(data.guest);
       setMemberships(data.memberships);
       setBusinessId((current) =>
-        data.memberships.some((m) => m.business_id === current)
+        data.demo?.active ? data.demo.business_id : data.memberships.some((m) => m.business_id === current)
           ? current
           : data.memberships[0]?.business_id || "",
       );
+      return true;
     } catch (e) {
       setError(e.message);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -46,6 +52,9 @@ export function AppProvider({ children }) {
       if (!s) {
         setMemberships([]);
         setProfile(null);
+        setDemo(null);
+        setGuest(false);
+        setBusinessId("");
         setLoading(false);
       }
     });
@@ -78,6 +87,8 @@ export function AppProvider({ children }) {
         loading,
         memberships,
         profile,
+        demo,
+        guest,
         businessId,
         setBusinessId,
         business: membership?.businesses,

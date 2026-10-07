@@ -24,6 +24,18 @@ Failure:
 
 Private requests require `Authorization: Bearer SUPABASE_ACCESS_TOKEN`. Tenant routes also require `X-Business-Id: BUSINESS_UUID`, which is checked against membership; supplying a header does not confer access.
 
+### Private visitor demo
+
+| Route | Authentication | Behavior |
+| --- | --- | --- |
+| `POST /demo/guest` | No Authorization header | Empty JSON body. Rate limited to 10 creations/15 minutes/IP/process. Creates a private guest identity and fictional tenant; returns its access/refresh tokens under `data.session` and server-owned demo state under `data.demo`. No password or admin token is returned. |
+| `POST /demo/start` | Verified user JWT | Body `{ "return_business_id": "optional UUID or null" }`. Seeds/resumes this user's separate demo; validates return-workspace membership. No business header required. |
+| `POST /demo/exit` | Verified user JWT | Empty body. Hides the demo without deleting it. Returns `guest` and `return_business_id`. Guest clients must sign out; regular clients refresh `/me`. |
+| `GET /me` | Verified user JWT | Includes `demo` and `guest`. Active demos expose only their own demo membership and a fictional profile. Inactive demos are hidden. Older shared owner grants are hidden from the primary account; dedicated fixture owners/admins retain their original sample access. |
+| `GET/PATCH /profile` | Verified user JWT | While demo is active, reads/edits the fictional profile in server-owned demo metadata, leaving actual Auth user profile fields unchanged. |
+
+Demo mode rejects tenant API requests that target real workspaces. Guest users cannot create real businesses through the API; migration `003_private_demo_allowance.sql` also protects the underlying SQL RPC and excludes personal demos from the five-business allowance. Ordinary RLS still applies to the visitor's tenant. Signed-in demo activation is account-wide; another tab must refresh to see the mode change. Reset is a visibility/session transition, not revocation of a signed-in owner's direct RLS access or deletion of records. Public booking links retain their usual public booking behavior.
+
 `GET /me`, `GET/PATCH /profile`, and `POST /businesses` require authentication but not a selected business. Profile metadata is personal presentation data, never authorization. Billing reads require membership; billing writes/checkout detail require owner membership but do not require an active subscription. Other private endpoints require premium access.
 
 | Status    | Meaning                                                                            |

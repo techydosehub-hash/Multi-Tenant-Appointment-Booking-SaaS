@@ -2485,3 +2485,24 @@ dd {
     scroll-behavior: auto !important;
   }
 }
+
+.demo-controls { position: fixed; right: 24px; bottom: 18px; z-index: 30; display: flex; align-items: center; gap: 12px; }
+.demo-controls.active { background: #234b3d; color: #fff; border: 1px solid #426454; border-radius: 12px; padding: 10px 14px; box-shadow: 0 5px 20px #18352b25; }
+.demo-controls.active > span { font-size: 12px; opacity: .8; }
+.demo-controls.active button { display: inline-flex; align-items: center; gap: 6px; background: transparent; color: #fff; border: 0; padding: 6px; font: inherit; font-size: 13px; cursor: pointer; }
+.demo-tour { position: fixed; z-index: 35; right: 24px; bottom: 85px; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 115px); overflow-y: auto; background: #fff; border: 1px solid #cbd5c7; border-radius: 16px; padding: 24px; box-shadow: 0 12px 45px #18352b26; }
+.demo-tour-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.demo-tour-heading button { background: transparent; border: none; cursor: pointer; padding: 5px; color: inherit; }
+.demo-tour h2 { margin: 16px 0 12px; font-size: 23px; }
+.demo-tour p { font-size: 14px; line-height: 1.65; }
+.demo-tour-tip { background: #f1f4ed; border-radius: 8px; padding: 12px; }
+.demo-progress { height: 4px; background: #e8ede3; border-radius: 4px; margin: 20px 0; overflow: hidden; }
+.demo-progress span { display: block; height: 100%; background: #234b3d; }
+.tour-highlight { outline: 2px solid #6e8c64; outline-offset: -2px; }
+.app-footer { padding-bottom: 85px; }
+@media (max-width: 600px) {
+  .demo-controls { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); gap: 5px; }
+  .demo-controls.active { padding: 8px; }
+  .demo-tour { right: 16px; bottom: 78px; padding: 18px; }
+  .landing-nav > .actions > .btn.subtle { display: none; }
+}

@@ -7,7 +7,7 @@ import { Badge, ErrorBox, Field, Loading, PageTitle, useResource } from "../ui";
 import TimezoneSelect from "../TimezoneSelect";
 
 export default function Profile() {
-  const { refresh, notify, memberships, businessId, setBusinessId, role } =
+  const { refresh, notify, memberships, businessId, setBusinessId, role, demo } =
     useApp();
   const resource = useResource(() => api("/profile"), []);
   const [busy, setBusy] = useState(false),
@@ -140,10 +140,10 @@ export default function Profile() {
           )}
           <button
             className="btn subtle"
-            disabled={busy || resetSent}
+            disabled={busy || resetSent || demo?.active}
             onClick={resetPassword}
           >
-            Send password reset email
+            {demo?.active ? "Password reset unavailable in demo" : "Send password reset email"}
           </button>
         </section>
       </div>

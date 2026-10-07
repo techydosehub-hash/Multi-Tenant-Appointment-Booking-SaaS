@@ -6,12 +6,14 @@ A complete source implementation of the required booking platform in **Jay Inter
 
 ## Start here
 
+**Private visitor demo (8 October 2026):** the landing/auth/dashboard entry points now offer a private demo without signup, a 12-feature guided walkthrough, and Reset to return to your own workspace. Each visitor gets a distinct Supabase tenant with 40 fictional clients and 184 appointments. Existing accounts reuse their own demo; guest sessions remain separate. See [PRIVATE_DEMO_GUIDE.md](docs/PRIVATE_DEMO_GUIDE.md) for deployment, tenancy, presentation steps and operational limits. Apply migration `003_private_demo_allowance.sql` after `002`, then redeploy both folders. These local changes are not yet confirmed on the public hosting deployments.
+
 For the complete current path from local setup and the `PGRST205` fix through GitHub, Google sign-in, Vercel frontend hosting, and Render backend/cron hosting, follow [SETUP_AND_DEPLOYMENT.md](SETUP_AND_DEPLOYMENT.md). This is the consolidated step-by-step guide.
 
 For the already-saved demos, role logins, deployment corrections, and manual checks across every feature, use [DEMO_WORKFLOW_GUIDE.md](DEMO_WORKFLOW_GUIDE.md). Demo passwords are in the ignored local `DEMO_ACCESS.local.md` file. Use `npm run seed:rich` from Backend only for an explicit seed/resume, never as a startup command.
 
 1. Read [how to run](docs/HOW_TO_RUN.md).
-2. For a new database, apply migrations in order starting with [001](Backend/supabase/migrations/001_initial.sql). For your already-populated database, apply only [the incremental function patch](Backend/supabase/migrations/002_booking_conflict.sql); do not recreate existing tables.
+2. For a new database, apply migrations in order starting with [001](Backend/supabase/migrations/001_initial.sql). For your already-populated database, apply [002](Backend/supabase/migrations/002_booking_conflict.sql) if still pending, then [003](Backend/supabase/migrations/003_private_demo_allowance.sql); do not recreate existing tables.
 3. Configure Supabase Auth URLs as described in the run guide.
 4. Start the backend and frontend in separate terminals:
 

@@ -13,6 +13,7 @@ import { useApp } from "../context";
 import { api, supabase, configured, authRedirectError } from "../lib";
 import { Brand, Field, ErrorBox, Loading } from "../ui";
 import TimezoneSelect from "../TimezoneSelect";
+import { DemoButton } from "../DemoExperience";
 export function Landing() {
   return (
     <div className="landing">
@@ -24,6 +25,7 @@ export function Landing() {
           <a href="#pricing">Pricing</a>
         </nav>
         <div className="actions">
+          <DemoButton />
           <Link className="quiet-link" to="/login">
             Log in
           </Link>

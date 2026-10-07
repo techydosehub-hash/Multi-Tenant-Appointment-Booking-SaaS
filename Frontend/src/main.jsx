@@ -26,6 +26,7 @@ import { AppProvider, useApp } from "./context";
 import { supabase } from "./lib";
 import { Brand, Loading, ErrorBox } from "./ui";
 import "./styles.css";
+import DemoExperience from "./DemoExperience";
 const page = (loader, name) =>
   lazy(() => loader().then((module) => ({ default: module[name] })));
 const Landing = page(() => import("./pages/Public"), "Landing");
@@ -108,6 +109,7 @@ function Portal() {
         <nav>
           {links.map(([path, label, Icon]) => (
             <NavLink
+              data-tour={path || "overview"}
               key={path}
               end={!path}
               to={`/dashboard${path ? "/" + path : ""}`}
@@ -192,6 +194,7 @@ createRoot(document.getElementById("root")).render(
     <ErrorBoundary>
       <BrowserRouter>
         <AppProvider>
+          <DemoExperience />
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Landing />} />

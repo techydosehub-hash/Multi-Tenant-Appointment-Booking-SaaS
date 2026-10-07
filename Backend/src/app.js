@@ -8,6 +8,7 @@ import { env } from "./config.js";
 import { system, userClient, result } from "./db.js";
 import * as v from "./validation.js";
 import { processNotifications } from "./notifications.js";
+import { createGuestDemo, startDemo, demoState, demoProfile, saveDemoState, isGuest, legacyDemoIds } from "./demo.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -241,6 +242,15 @@ publicRouter.post(
 );
 app.use("/api/public", publicRouter);
 
+app.post("/api/demo/guest", rateLimit({
+  windowMs: 15 * 60000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false,
+  handler: (_req, res) => res.status(429).json({ error: { message: "Demo creation is busy. Please try again later, or sign in to use your private demo." } }),
+}), async (req, res) => {
+  if (req.get("authorization")) throw fail(400, "Use your signed-in demo instead");
+  z.object({}).strict().parse(req.body || {});
+  ok(res, await createGuestDemo(), 201);
+});
+
 const portal = express.Router();
 portal.use(async (req, _res, next) => {
   const token = req.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
@@ -263,7 +273,7 @@ const accountProfile = (user) => ({
   timezone: user.user_metadata?.profile_timezone || "Asia/Kolkata",
   providers: user.app_metadata?.providers || [],
 });
-portal.get("/profile", async (req, res) => ok(res, accountProfile(req.user)));
+portal.get("/profile", async (req, res) => ok(res, demoState(req.user)?.active ? demoProfile(req.user) : accountProfile(req.user)));
 portal.patch("/profile", async (req, res) => {
   const b = z
     .object({
@@ -274,6 +284,11 @@ portal.patch("/profile", async (req, res) => {
     })
     .strict()
     .parse(req.body);
+  if (demoState(req.user)?.active) {
+    const user = await saveDemoState(req.user, { ...demoState(req.user), profile: b });
+    return ok(res, demoProfile(user));
+  }
+  if (isGuest(req.user)) throw fail(403, "Create your own account to edit a real profile");
   // Editable Auth metadata is presentation only. Roles always come from business_members.
   // The per-request DB client has a JWT header, not a refresh-token Auth session.
   // Use the trusted Auth API for this verified user's ID and only whitelisted metadata.
@@ -289,18 +304,31 @@ portal.patch("/profile", async (req, res) => {
   if (error) throw error;
   ok(res, accountProfile(data.user));
 });
-portal.get("/me", async (req, res) =>
-  ok(res, {
-    user: accountProfile(req.user),
-    memberships: await result(
+portal.get("/me", async (req, res) => {
+  const demo = demoState(req.user);
+  const memberships = await result(
       req.db
         .from("business_members")
         .select("business_id,role,businesses(*)")
         .eq("user_id", req.user.id),
-    ),
-  }),
-);
+    );
+  ok(res, {
+    user: demo?.active ? demoProfile(req.user) : accountProfile(req.user),
+    demo, guest: isGuest(req.user),
+    memberships: memberships.filter(m => demo?.active ? m.business_id === demo.business_id : m.business_id !== demo?.business_id && !(legacyDemoIds.has(m.business_id) && m.role === "owner" && m.businesses.owner_user_id !== req.user.id)),
+  });
+});
+portal.post("/demo/start", async (req, res) => {
+  const b = z.object({ return_business_id: v.id.nullable().optional() }).strict().parse(req.body || {});
+  ok(res, await startDemo(req.user, b.return_business_id));
+});
+portal.post("/demo/exit", async (req, res) => {
+  const demo = demoState(req.user);
+  if (demo) await saveDemoState(req.user, { ...demo, active: false });
+  ok(res, { guest: isGuest(req.user), return_business_id: demo?.return_business_id || null });
+});
 portal.post("/businesses", async (req, res) => {
+  if (isGuest(req.user) || demoState(req.user)?.active) throw fail(403, "Exit the demo and use your own account to create a real workspace");
   const b = z
     .object({ name: v.text, slug: v.slug, timezone: v.timezone })
     .strict()
@@ -321,6 +349,9 @@ portal.post("/businesses", async (req, res) => {
 });
 portal.use(async (req, _res, next) => {
   req.businessId = v.id.parse(req.get("x-business-id"));
+  const demo = demoState(req.user);
+  if ((demo?.active || isGuest(req.user)) && (!demo?.active || req.businessId !== demo.business_id))
+    throw fail(403, "Exit the demo to use your real workspace");
   const membership = await result(
     req.db
       .from("business_members")
