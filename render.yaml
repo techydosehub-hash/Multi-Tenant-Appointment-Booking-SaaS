@@ -1,0 +1,46 @@
+# Optional Render Blueprint. The primary guide also supports creating services manually.
+# Supply backend secrets through the Render dashboard; none belong in this file.
+services:
+  - type: web
+    name: steadly-api
+    runtime: node
+    plan: starter
+    rootDir: Backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: BILLING_WEBHOOK_SECRET
+        sync: false
+      - key: BILLING_MODE
+        value: simulation
+      - key: NOTIFICATION_MODE
+        value: mock
+      - key: TRUST_PROXY
+        value: 1
+  - type: cron
+    name: steadly-reminders
+    runtime: node
+    rootDir: Backend
+    schedule: "*/15 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run jobs:reminders
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: API_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
