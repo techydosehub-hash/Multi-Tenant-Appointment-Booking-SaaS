@@ -10,7 +10,9 @@ export const env = z
     SUPABASE_URL: z.url(),
     SUPABASE_ANON_KEY: z.string().min(20),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
-    APP_URL: z.url(),
+    // Browsers send an origin with no trailing slash. Normalize configuration for
+    // both CORS and checkout links instead of requiring exact manual formatting.
+    APP_URL: z.url().transform((value) => new URL(value).origin),
     CRON_SECRET: z.string().min(32),
     BILLING_WEBHOOK_SECRET: z.string().min(32),
     BILLING_MODE: z.literal("simulation").default("simulation"),

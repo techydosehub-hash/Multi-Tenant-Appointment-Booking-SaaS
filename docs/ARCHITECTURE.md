@@ -2,6 +2,8 @@
 
 ## Tenant boundary
 
+Personal account profiles live in Supabase Auth metadata and are exposed through authenticated `/profile` routes before tenant subscription gating. The server whitelists editable fields and updates only the JWT-verified user ID. Metadata is presentation data; authorization continues to derive solely from protected membership rows. Personal timezone preferences are independent of business scheduling timezones.
+
 All tenant tables include `business_id`, including child records. Membership derives from `auth.uid()` through a fixed-search-path, security-definer helper. The helper reads the protected membership table without recursive RLS evaluation. Browser roles cannot mutate memberships or ownership.
 
 Private HTTP routes validate a Supabase access token with `auth.getUser()`, verify the requested `X-Business-Id` membership, then make normal reads/writes using that token. RLS independently enforces membership. Composite foreign keys ensure a booking/client/service/provider relation cannot point into another tenant, even when both IDs exist.
@@ -26,6 +28,8 @@ Prices are integer minor units, with two-decimal currencies restricted to INR/US
 Emails normalize to lower-case trimmed strings and are unique per tenant. Phone formatting removes common separators and validates 7–15 digits with an optional leading `+`. Email is the authoritative deduplication key; phone-only merging is deliberately avoided because households can share phone numbers. A client-supplied booking message never overwrites internal CRM notes.
 
 ## Availability and concurrency
+
+The API rejects explicitly stale versions before calling the mutation RPC, while the database retains the authoritative locked version check. Incremental migration `002_booking_conflict.sql` expresses that database domain conflict with `PT409`, not a serialization rollback code. It also counts actual business creators for onboarding limits rather than shared memberships. Database requests have a 20-second timeout; changing frontend state cannot bypass the final SQL checks.
 
 `available_slots` is the single database scheduling engine used by public availability, creation, and rescheduling. It considers:
 
@@ -61,13 +65,13 @@ Preference changes do not backfill missed jobs. Jobs already queued for a now-di
 
 An owner/admin distinction is supported; only owners change billing. Each business starts with a simulated customer ID and a 14-day trial. Checkout is an explicit two-step flow with an expiring server-side session and idempotent completion. It resets the monthly period to one month from confirmation; it is not prorated and does not collect money.
 
-| State | Premium access |
-|---|---|
-| `trialing` | Until current period end |
-| `active` | Until current period end |
-| `past_due` | Until current period end plus three days |
-| `cancelled` | Removed immediately |
-| `incomplete` | Unavailable |
+| State        | Premium access                           |
+| ------------ | ---------------------------------------- |
+| `trialing`   | Until current period end                 |
+| `active`     | Until current period end                 |
+| `past_due`   | Until current period end plus three days |
+| `cancelled`  | Removed immediately                      |
+| `incomplete` | Unavailable                              |
 
 Billing routes remain available when premium routes return 402. Public booking deliberately remains available while the business is published, to avoid disrupting customers. Owners can pause the page before cancelling. Subscription state is never accepted from the ordinary browser checkout body.
 

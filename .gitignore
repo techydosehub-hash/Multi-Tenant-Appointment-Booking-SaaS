@@ -9,3 +9,8 @@ tmp/
 .render/
 supabase/.temp/
 Backend/supabase/.temp/
+.env.demo
+.demo-seed-manifest.json
+.demo-data-verification.json
+.qa-verification.json
+DEMO_ACCESS.local.md

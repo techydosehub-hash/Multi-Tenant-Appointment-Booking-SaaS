@@ -2,6 +2,15 @@ import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Accept the API origin or the full /api base without producing broken routes.
+const configuredApi = (
+  import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+)
+  .trim()
+  .replace(/\/+$/, "");
+const apiBase = configuredApi.endsWith("/api")
+  ? configuredApi
+  : `${configuredApi}/api`;
 const callbackParams = new URLSearchParams(window.location.search);
 const callbackHash = new URLSearchParams(window.location.hash.slice(1));
 export const authRedirectError =
@@ -17,19 +26,16 @@ export async function api(
   const session = supabase
     ? (await supabase.auth.getSession()).data.session
     : null;
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL || "http://localhost:3001/api"}${path}`,
-    {
-      method,
-      signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        ...(businessId ? { "X-Business-Id": businessId } : {}),
-      },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  const response = await fetch(`${apiBase}${path}`, {
+    method,
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      ...(businessId ? { "X-Business-Id": businessId } : {}),
     },
-  );
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
   let payload;
   try {
     payload = await response.json();

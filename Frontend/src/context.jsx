@@ -11,6 +11,7 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null),
     [loading, setLoading] = useState(true),
     [memberships, setMemberships] = useState([]),
+    [profile, setProfile] = useState(null),
     [businessId, setBusinessId] = useState(
       localStorage.getItem("steadly_business") || "",
     ),
@@ -20,6 +21,7 @@ export function AppProvider({ children }) {
     try {
       setError("");
       const data = await api("/me");
+      setProfile(data.user);
       setMemberships(data.memberships);
       setBusinessId((current) =>
         data.memberships.some((m) => m.business_id === current)
@@ -43,6 +45,7 @@ export function AppProvider({ children }) {
       setSession(s);
       if (!s) {
         setMemberships([]);
+        setProfile(null);
         setLoading(false);
       }
     });
@@ -74,6 +77,7 @@ export function AppProvider({ children }) {
         session,
         loading,
         memberships,
+        profile,
         businessId,
         setBusinessId,
         business: membership?.businesses,

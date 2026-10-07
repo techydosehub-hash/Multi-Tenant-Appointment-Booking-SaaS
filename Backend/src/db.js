@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./config.js";
-const options = { auth: { persistSession: false, autoRefreshToken: false } };
+const options = {
+  auth: { persistSession: false, autoRefreshToken: false },
+  db: { timeout: 20000 },
+};
 export const system = createClient(
   env.SUPABASE_URL,
   env.SUPABASE_SERVICE_ROLE_KEY,

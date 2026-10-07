@@ -2,14 +2,16 @@
 
 A complete source implementation of the required booking platform in **Jay Interview Task.pdf**, with a restrained ivory, charcoal, and muted-green interface. React lives in `Frontend`; the Express API, Supabase migration, and setup utilities live in `Backend`.
 
-**Delivery status:** source written; dependencies installed; database migration and deployment are manual setup steps. Billing and notifications intentionally use the simulations allowed by the specification. No automated tests or live workflow tests have been created or run, at the user's request. See `docs/COMPLETION.md` for percentages and the distinction between implementation and verification.
+**Current status (7 October 2026):** the existing production site connects successfully to Supabase. The original four demo workspaces contain the seeded 1,000 appointments/240 customers plus later manual/QA history. This update adds searchable timezones, owner/admin profiles, and animated simulated payments with receipts/history. Targeted browser checks and 25 API/database checks passed using demo data. Apply incremental migration `002_booking_conflict.sql` and deploy both updated folders. See [the current PDF audit and release steps](docs/PDF_REQUIREMENTS_AUDIT.md) for exact evidence, remaining gaps, and literal PDF differences. A maintained automated test/CI suite is still outstanding.
 
 ## Start here
 
 For the complete current path from local setup and the `PGRST205` fix through GitHub, Google sign-in, Vercel frontend hosting, and Render backend/cron hosting, follow [SETUP_AND_DEPLOYMENT.md](SETUP_AND_DEPLOYMENT.md). This is the consolidated step-by-step guide.
 
+For the already-saved demos, role logins, deployment corrections, and manual checks across every feature, use [DEMO_WORKFLOW_GUIDE.md](DEMO_WORKFLOW_GUIDE.md). Demo passwords are in the ignored local `DEMO_ACCESS.local.md` file. Use `npm run seed:rich` from Backend only for an explicit seed/resume, never as a startup command.
+
 1. Read [how to run](docs/HOW_TO_RUN.md).
-2. Apply [the database migration](Backend/supabase/migrations/001_initial.sql) to your Supabase project using its SQL editor.
+2. For a new database, apply migrations in order starting with [001](Backend/supabase/migrations/001_initial.sql). For your already-populated database, apply only [the incremental function patch](Backend/supabase/migrations/002_booking_conflict.sql); do not recreate existing tables.
 3. Configure Supabase Auth URLs as described in the run guide.
 4. Start the backend and frontend in separate terminals:
 
@@ -29,7 +31,7 @@ npm run dev
 6. Add services, add a provider, assign services to the provider, and configure availability.
 7. Share `/booking/your-business-slug`.
 
-The supplied Supabase URL and keys have been placed in ignored local environment files. The server-only service-role key is **only** in `Backend/.env`. The `.env.example` files contain placeholders. If reproducing from a checkout, copy the examples and supply your own values. A later read-only schema diagnosis confirmed the application tables/view are visible; authenticated user workflows remain unverified.
+The supplied Supabase URL and keys have been placed in ignored local environment files. The server-only service-role key is **only** in `Backend/.env`. The `.env.example` files contain placeholders. If reproducing from a checkout, copy the examples and supply your own values. Read-only authenticated API checks confirmed demo data can be retrieved and subscription gating applies; full manual mutation workflows remain unverified.
 
 ## Stack and structure
 

@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import { Plus, Clock, Scissors } from "lucide-react";
 import { useApp } from "../context";
 import { formatDate, money, query } from "../lib";
+import TimezoneSelect from "../TimezoneSelect";
 import {
   Badge,
   ConfirmButton,
@@ -404,18 +405,7 @@ export function SettingsPage() {
               maxLength={30}
               defaultValue={b.phone}
             />
-            <Field
-              label="Timezone"
-              name="timezone"
-              required
-              defaultValue={b.timezone}
-              list="zones"
-            />
-            <datalist id="zones">
-              {Intl.supportedValuesOf("timeZone").map((t) => (
-                <option key={t} value={t} />
-              ))}
-            </datalist>
+            <TimezoneSelect key={b.id + b.timezone} defaultValue={b.timezone} />
             <Field label="Business currency">
               <select name="currency" defaultValue={b.currency}>
                 {["INR", "USD", "EUR", "GBP"].map((c) => (

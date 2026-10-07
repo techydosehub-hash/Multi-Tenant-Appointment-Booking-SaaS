@@ -20,6 +20,7 @@ import {
   LogOut,
   ArrowUpRight,
   Bell,
+  UserRound,
 } from "lucide-react";
 import { AppProvider, useApp } from "./context";
 import { supabase } from "./lib";
@@ -45,6 +46,7 @@ const SettingsPage = page(() => import("./pages/Settings"), "SettingsPage");
 const Schedule = page(() => import("./pages/Settings"), "Schedule");
 const Notifications = page(() => import("./pages/Settings"), "Notifications");
 const Billing = lazy(() => import("./pages/Billing"));
+const Profile = lazy(() => import("./pages/Profile"));
 const links = [
   ["", "Overview", LayoutDashboard],
   ["calendar", "Calendar", CalendarDays],
@@ -56,6 +58,7 @@ const links = [
   ["notifications", "Notifications", Bell],
   ["settings", "Settings", Settings],
   ["billing", "Billing", CreditCard],
+  ["profile", "My profile", UserRound],
 ];
 function Portal() {
   const {
@@ -67,6 +70,8 @@ function Portal() {
     memberships,
     error,
     refresh,
+    profile,
+    role,
   } = useApp();
   if (loading) return <Loading />;
   if (!session) return <Navigate to="/login" replace />;
@@ -137,9 +142,19 @@ function Portal() {
           </span>
           <span>
             {business.timezone}{" "}
-            <span className="avatar">
-              {session.user.email?.[0]?.toUpperCase()}
-            </span>
+            <Link
+              to="/dashboard/profile"
+              className="account-link"
+              aria-label="Open your profile"
+            >
+              <span className="account-name">
+                {profile?.full_name || session.user.email?.split("@")[0]}
+                <small>{role === "owner" ? "Owner" : "Admin"}</small>
+              </span>
+              <span className="avatar">
+                {(profile?.full_name || session.user.email)?.[0]?.toUpperCase()}
+              </span>
+            </Link>
           </span>
         </header>
         <main key={businessId}>
@@ -199,6 +214,7 @@ createRoot(document.getElementById("root")).render(
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="billing" element={<Billing />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
               <Route
                 path="*"

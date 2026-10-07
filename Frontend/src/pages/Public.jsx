@@ -12,6 +12,7 @@ import {
 import { useApp } from "../context";
 import { api, supabase, configured, authRedirectError } from "../lib";
 import { Brand, Field, ErrorBox, Loading } from "../ui";
+import TimezoneSelect from "../TimezoneSelect";
 export function Landing() {
   return (
     <div className="landing">
@@ -520,18 +521,7 @@ export function Onboarding() {
           onChange={(e) => setSlug(e.target.value)}
         />
         <small>Your link: /booking/{slug || "your-business"}</small>
-        <Field
-          label="Business timezone"
-          name="timezone"
-          defaultValue="Asia/Kolkata"
-          required
-          list="timezones"
-        />
-        <datalist id="timezones">
-          {Intl.supportedValuesOf("timeZone").map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
+        <TimezoneSelect label="Business timezone" />
         <button className="btn full" disabled={busy}>
           {busy ? "Creating workspace…" : "Create workspace"}
           <ArrowRight size={17} />

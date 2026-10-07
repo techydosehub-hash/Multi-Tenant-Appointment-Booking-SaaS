@@ -181,12 +181,21 @@ export function Overview() {
   );
 }
 export function Bookings() {
-  const { request } = useApp();
+  const { request, business } = useApp();
   const [page, setPage] = useState(1),
-    [status, setStatus] = useState("");
+    [status, setStatus] = useState(""),
+    [provider, setProvider] = useState(""),
+    [date, setDate] = useState("");
+  const providers = useResource(() => request("/providers"), [request]);
+  const selectedDay = date
+    ? DateTime.fromISO(date, { zone: business.timezone }).startOf("day")
+    : null;
   const r = useResource(
-    () => request(`/bookings?${query({ page, status })}`),
-    [request, page, status],
+    () =>
+      request(
+        `/bookings?${query({ page, status, provider_id: provider, from: selectedDay?.toUTC().toISO(), to: selectedDay?.plus({ days: 1 }).toUTC().toISO() })}`,
+      ),
+    [request, page, status, provider, date, business.timezone],
   );
   return (
     <>
@@ -211,6 +220,44 @@ export function Bookings() {
             )}
           </select>
         </Field>
+        <Field label="Filter by provider">
+          <select
+            value={provider}
+            onChange={(e) => {
+              setProvider(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All providers</option>
+            {providers.data?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field
+          label="Appointment date"
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setPage(1);
+          }}
+        />
+        {(status || provider || date) && (
+          <button
+            className="btn subtle"
+            onClick={() => {
+              setStatus("");
+              setProvider("");
+              setDate("");
+              setPage(1);
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
       <ErrorBox error={r.error} />
       <section className="panel">

@@ -13,38 +13,44 @@ Success:
 Failure:
 
 ```json
-{ "error": { "code": "HTTP_401", "message": "Please sign in", "request_id": "..." } }
+{
+  "error": {
+    "code": "HTTP_401",
+    "message": "Please sign in",
+    "request_id": "..."
+  }
+}
 ```
 
 Private requests require `Authorization: Bearer SUPABASE_ACCESS_TOKEN`. Tenant routes also require `X-Business-Id: BUSINESS_UUID`, which is checked against membership; supplying a header does not confer access.
 
-`GET /me` and `POST /businesses` require authentication but not a selected business. Billing reads require membership; billing writes require owner membership but do not require an active subscription. Other private endpoints require premium access.
+`GET /me`, `GET/PATCH /profile`, and `POST /businesses` require authentication but not a selected business. Profile metadata is personal presentation data, never authorization. Billing reads require membership; billing writes/checkout detail require owner membership but do not require an active subscription. Other private endpoints require premium access.
 
-| Status | Meaning |
-|---|---|
-| 200 / 201 | Successful read/update or creation |
-| 400 | Validation, invalid transition, or domain constraint |
-| 401 | Missing/invalid authentication or scheduler/webhook credentials |
-| 402 | Subscription does not allow premium API access |
-| 403 | Membership, ownership, or database authorization denied |
-| 404 | Missing/unavailable record |
-| 409 | Slot conflict, duplicate record, or stale booking version |
-| 429 | Rate limit exceeded |
-| 500 | Unexpected error; inspect correlation ID in server logs |
-| 503 | Required database schema or database connection unavailable; follow setup recovery |
+| Status    | Meaning                                                                            |
+| --------- | ---------------------------------------------------------------------------------- |
+| 200 / 201 | Successful read/update or creation                                                 |
+| 400       | Validation, invalid transition, or domain constraint                               |
+| 401       | Missing/invalid authentication or scheduler/webhook credentials                    |
+| 402       | Subscription does not allow premium API access                                     |
+| 403       | Membership, ownership, or database authorization denied                            |
+| 404       | Missing/unavailable record                                                         |
+| 409       | Slot conflict, duplicate record, or stale booking version                          |
+| 429       | Rate limit exceeded                                                                |
+| 500       | Unexpected error; inspect correlation ID in server logs                            |
+| 503       | Required database schema or database connection unavailable; follow setup recovery |
 
 ## Public and system endpoints
 
-| Method | Path | Input / behavior |
-|---|---|---|
-| GET | `/health` | Process health and configured simulation labels; not a database readiness probe |
-| GET | `/health/ready` | Read-only membership relationship and CRM-view metadata availability; 503 if required schema is unavailable |
-| GET | `/public/businesses/:slug` | Safe public business, services, providers, and capability mappings |
-| GET | `/public/businesses/:slug/services` | Active service projections |
-| GET | `/public/businesses/:slug/availability` | `service_id`, `date=YYYY-MM-DD`, optional `provider_id` |
-| POST | `/public/businesses/:slug/bookings` | Validated booking payload below |
-| GET | `/jobs/reminders` | Requires `Authorization: Bearer CRON_SECRET`; processes up to 50 jobs |
-| POST | `/billing/webhook` | Raw signed simulated lifecycle event; no user auth |
+| Method | Path                                    | Input / behavior                                                                                            |
+| ------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                               | Process health and configured simulation labels; not a database readiness probe                             |
+| GET    | `/health/ready`                         | Read-only membership relationship and CRM-view metadata availability; 503 if required schema is unavailable |
+| GET    | `/public/businesses/:slug`              | Safe public business, services, providers, and capability mappings                                          |
+| GET    | `/public/businesses/:slug/services`     | Active service projections                                                                                  |
+| GET    | `/public/businesses/:slug/availability` | `service_id`, `date=YYYY-MM-DD`, optional `provider_id`                                                     |
+| POST   | `/public/businesses/:slug/bookings`     | Validated booking payload below                                                                             |
+| GET    | `/jobs/reminders`                       | Requires `Authorization: Bearer CRON_SECRET`; processes up to 50 jobs                                       |
+| POST   | `/billing/webhook`                      | Raw signed simulated lifecycle event; no user auth                                                          |
 
 Booking payload:
 
@@ -65,59 +71,63 @@ UUID placeholders must be replaced with real UUID values. `starts_at` must exact
 
 ## Authentication, tenancy, and profile
 
-| Method | Path | Input / behavior |
-|---|---|---|
-| GET | `/me` | Current user ID/email and accessible business memberships |
-| POST | `/businesses` | `{name, slug, timezone}`; transactional onboarding |
-| GET | `/business` | Selected tenant profile |
-| PATCH | `/business` | Full editable profile object |
-| GET | `/dashboard` | Defined aggregate dashboard metrics |
+| Method | Path          | Input / behavior                                                                   |
+| ------ | ------------- | ---------------------------------------------------------------------------------- |
+| GET    | `/me`         | Current user ID/email and accessible business memberships                          |
+| GET    | `/profile`    | Current authenticated user's editable personal profile and account information     |
+| PATCH  | `/profile`    | `{full_name, phone, bio, timezone}`; own verified user only; no role/email changes |
+| POST   | `/businesses` | `{name, slug, timezone}`; transactional onboarding                                 |
+| GET    | `/business`   | Selected tenant profile                                                            |
+| PATCH  | `/business`   | Full editable profile object                                                       |
+| GET    | `/dashboard`  | Defined aggregate dashboard metrics                                                |
 
 Editable profile fields: `name`, `slug`, `description`, `timezone`, `currency`, `phone`, `email`, `status` (`active`/`paused`), `requires_approval`, `email_notifications`, `sms_notifications`.
 
+Additional billing endpoints: `GET /billing/history?page=1&limit=10` returns paginated tenant checkout sessions; `GET /billing/checkout/:id` returns a tenant/owner-checked session with server-defined plan/amount/expiry; `POST /billing/checkout/:id/decline` records an idempotent simulated decline without changing the subscription. The existing completion RPC activates an approved demo subscription atomically. Receipt contents are derived from completed sessions; no financial details are accepted.
+
 ## Services, providers, and schedules
 
-| Method | Path | Input / behavior |
-|---|---|---|
-| GET / POST | `/services` | List or create `{name, description, duration_minutes, price, active}` |
-| PATCH | `/services/:id` | Partial editable service object; deactivate instead of deleting history |
-| GET / POST | `/providers` | List or create `{name, active}` |
-| PATCH | `/providers/:id` | Partial editable provider object |
-| GET | `/provider-services` | Capability mappings |
-| POST / DELETE | `/provider-services` | `{provider_id, service_id}` to assign/remove capability |
-| GET | `/schedule` | Business hours, provider hours, and blocked periods |
-| PUT | `/schedule/hours` | `{provider_id: UUID or null, hours: [seven daily records]}` |
-| DELETE | `/schedule/providers/:id` | Remove overrides; follow business hours |
-| POST | `/schedule/blocks` | `{provider_id: UUID or null, starts_at, ends_at, reason}` |
-| DELETE | `/schedule/blocks/:id` | Remove tenant-owned block |
+| Method        | Path                      | Input / behavior                                                        |
+| ------------- | ------------------------- | ----------------------------------------------------------------------- |
+| GET / POST    | `/services`               | List or create `{name, description, duration_minutes, price, active}`   |
+| PATCH         | `/services/:id`           | Partial editable service object; deactivate instead of deleting history |
+| GET / POST    | `/providers`              | List or create `{name, active}`                                         |
+| PATCH         | `/providers/:id`          | Partial editable provider object                                        |
+| GET           | `/provider-services`      | Capability mappings                                                     |
+| POST / DELETE | `/provider-services`      | `{provider_id, service_id}` to assign/remove capability                 |
+| GET           | `/schedule`               | Business hours, provider hours, and blocked periods                     |
+| PUT           | `/schedule/hours`         | `{provider_id: UUID or null, hours: [seven daily records]}`             |
+| DELETE        | `/schedule/providers/:id` | Remove overrides; follow business hours                                 |
+| POST          | `/schedule/blocks`        | `{provider_id: UUID or null, starts_at, ends_at, reason}`               |
+| DELETE        | `/schedule/blocks/:id`    | Remove tenant-owned block                                               |
 
 Each hours row contains `day_of_week` (Sunday=0 through Saturday=6), `start_time` (`HH:mm`), `end_time`, and `enabled`. Include each weekday exactly once. End must be after start even on disabled days. Provider hours intersect with business hours. Changing hours or blocks does not modify existing bookings.
 
 ## Bookings and CRM
 
-| Method | Path | Input / behavior |
-|---|---|---|
-| GET | `/bookings` | `page`, `limit`, optional `from`, `to`, `status`, `provider_id`, `client_id` |
-| GET | `/bookings/:id` | Booking, joined client/service/provider fields, and audit events |
-| PATCH | `/bookings/:id` | `{status, version}` |
-| GET | `/bookings/:id/availability` | `date`, optional `provider_id`; excludes the current booking after authorization |
-| POST | `/bookings/:id/reschedule` | `{starts_at, provider_id, version}` |
-| GET | `/clients` | `search`, `page`, `limit`; includes aggregated metrics |
-| GET | `/clients/:id` | Tenant client and metrics |
-| PATCH | `/clients/:id` | `{notes}` only; private business notes |
-| GET | `/notifications` | Paginated jobs, including retry/error state |
-| GET | `/notification-logs` | Paginated delivery attempts |
+| Method | Path                         | Input / behavior                                                                 |
+| ------ | ---------------------------- | -------------------------------------------------------------------------------- |
+| GET    | `/bookings`                  | `page`, `limit`, optional `from`, `to`, `status`, `provider_id`, `client_id`     |
+| GET    | `/bookings/:id`              | Booking, joined client/service/provider fields, and audit events                 |
+| PATCH  | `/bookings/:id`              | `{status, version}`                                                              |
+| GET    | `/bookings/:id/availability` | `date`, optional `provider_id`; excludes the current booking after authorization |
+| POST   | `/bookings/:id/reschedule`   | `{starts_at, provider_id, version}`                                              |
+| GET    | `/clients`                   | `search`, `page`, `limit`; includes aggregated metrics                           |
+| GET    | `/clients/:id`               | Tenant client and metrics                                                        |
+| PATCH  | `/clients/:id`               | `{notes}` only; private business notes                                           |
+| GET    | `/notifications`             | Paginated jobs, including retry/error state                                      |
+| GET    | `/notification-logs`         | Paginated delivery attempts                                                      |
 
 List responses with pagination: `{items, total, page, limit}` for bookings/clients; notification responses contain `{items, total}`. Default limit 25, maximum 100. Combined booking `from`/`to` ranges must be increasing and at most 93 days. Bounds are inclusive start/exclusive end. If no date range is supplied, bookings are sorted newest first; calendar ranges sort ascending.
 
 ## Billing
 
-| Method | Path | Input / behavior |
-|---|---|---|
-| GET | `/billing` | Subscription, mode, monthly plan price and currency |
-| POST | `/billing/checkout` | Owner only; creates expiring session and internal checkout URL |
-| POST | `/billing/checkout/:id/complete` | Owner only; activates a simulated month; session completion is idempotent |
-| POST | `/billing/cancel` | Owner only; immediate cancellation and audit event |
+| Method | Path                             | Input / behavior                                                          |
+| ------ | -------------------------------- | ------------------------------------------------------------------------- |
+| GET    | `/billing`                       | Subscription, mode, monthly plan price and currency                       |
+| POST   | `/billing/checkout`              | Owner only; creates expiring session and internal checkout URL            |
+| POST   | `/billing/checkout/:id/complete` | Owner only; activates a simulated month; session completion is idempotent |
+| POST   | `/billing/cancel`                | Owner only; immediate cancellation and audit event                        |
 
 Simulated webhook body:
 

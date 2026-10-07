@@ -252,9 +252,46 @@ portal.use(async (req, _res, next) => {
   req.user = data.user;
   next();
 });
+const accountProfile = (user) => ({
+  id: user.id,
+  email: user.email,
+  created_at: user.created_at,
+  last_sign_in_at: user.last_sign_in_at,
+  full_name: user.user_metadata?.full_name || "",
+  phone: user.user_metadata?.profile_phone || "",
+  bio: user.user_metadata?.profile_bio || "",
+  timezone: user.user_metadata?.profile_timezone || "Asia/Kolkata",
+  providers: user.app_metadata?.providers || [],
+});
+portal.get("/profile", async (req, res) => ok(res, accountProfile(req.user)));
+portal.patch("/profile", async (req, res) => {
+  const b = z
+    .object({
+      full_name: v.text,
+      phone: z.string().trim().max(30),
+      bio: z.string().trim().max(500),
+      timezone: v.timezone,
+    })
+    .strict()
+    .parse(req.body);
+  // Editable Auth metadata is presentation only. Roles always come from business_members.
+  // The per-request DB client has a JWT header, not a refresh-token Auth session.
+  // Use the trusted Auth API for this verified user's ID and only whitelisted metadata.
+  const { data, error } = await system.auth.admin.updateUserById(req.user.id, {
+    user_metadata: {
+      ...req.user.user_metadata,
+      full_name: b.full_name,
+      profile_phone: b.phone,
+      profile_bio: b.bio,
+      profile_timezone: b.timezone,
+    },
+  });
+  if (error) throw error;
+  ok(res, accountProfile(data.user));
+});
 portal.get("/me", async (req, res) =>
   ok(res, {
-    user: { id: req.user.id, email: req.user.email },
+    user: accountProfile(req.user),
     memberships: await result(
       req.db
         .from("business_members")
@@ -315,6 +352,79 @@ portal.get("/billing", async (req, res) =>
     currency: "USD",
   }),
 );
+portal.get("/billing/history", async (req, res) => {
+  const p = paginate(req);
+  ok(
+    res,
+    await result(
+      req.db
+        .from("billing_sessions")
+        .select("id,status,created_at,expires_at", { count: "exact" })
+        .eq("business_id", req.businessId)
+        .order("created_at", { ascending: false })
+        .range(p.from, p.to),
+    ),
+  );
+});
+portal.get("/billing/checkout/:id", owner, async (req, res) => {
+  const session = await result(
+    req.db
+      .from("billing_sessions")
+      .select("id,business_id,status,expires_at,created_at")
+      .eq("id", v.id.parse(req.params.id))
+      .eq("business_id", req.businessId)
+      .single(),
+  );
+  ok(res, {
+    ...session,
+    amount: 1900,
+    currency: "USD",
+    plan: "Studio Monthly",
+    mode: "simulation",
+    expired:
+      session.status !== "completed" &&
+      new Date(session.expires_at) <= new Date(),
+  });
+});
+portal.post("/billing/checkout/:id/decline", owner, async (req, res) => {
+  const id = v.id.parse(req.params.id);
+  const session = await result(
+    req.db
+      .from("billing_sessions")
+      .select("status,expires_at")
+      .eq("id", id)
+      .eq("business_id", req.businessId)
+      .single(),
+  );
+  if (
+    session.status !== "pending" ||
+    new Date(session.expires_at) <= new Date()
+  )
+    throw fail(400, "This checkout is no longer available");
+  await result(
+    system
+      .from("billing_events")
+      .upsert(
+        {
+          id: `demo_decline_${id}`,
+          business_id: req.businessId,
+          event_type: "simulation.payment.declined",
+          metadata: {
+            session_id: id,
+            simulated: true,
+            amount: 1900,
+            currency: "USD",
+          },
+        },
+        { onConflict: "id", ignoreDuplicates: true },
+      ),
+  );
+  ok(res, {
+    status: "declined",
+    message:
+      "The demo payment was declined. Your subscription was not changed. Choose the approved demo method to retry.",
+  });
+});
 portal.post("/billing/checkout", owner, async (req, res) => {
   const session = await result(
     system
@@ -617,6 +727,16 @@ portal.patch("/bookings/:id", async (req, res) => {
     })
     .strict()
     .parse(req.body);
+  const current = await result(
+    req.db
+      .from("bookings")
+      .select("version")
+      .eq("business_id", req.businessId)
+      .eq("id", v.id.parse(req.params.id))
+      .single(),
+  );
+  if (current.version !== b.version)
+    throw fail(409, "This booking changed. Refresh and try again.");
   ok(
     res,
     await result(
@@ -664,6 +784,16 @@ portal.post("/bookings/:id/reschedule", async (req, res) => {
     })
     .strict()
     .parse(req.body);
+  const current = await result(
+    req.db
+      .from("bookings")
+      .select("version")
+      .eq("business_id", req.businessId)
+      .eq("id", v.id.parse(req.params.id))
+      .single(),
+  );
+  if (current.version !== b.version)
+    throw fail(409, "This booking changed. Refresh and try again.");
   ok(
     res,
     await result(
@@ -769,6 +899,13 @@ app.use((error, req, res, _next) => {
       .map((i) => `${i.path.join(".") || "Input"}: ${i.message}`)
       .join("; ");
   } else if (
+    !error.code &&
+    /fetch failed|abort|timeout/i.test(error.message || "")
+  ) {
+    status = 503;
+    message =
+      "The database connection timed out. Please refresh and try again.";
+  } else if (
     ["PGRST205", "PGRST200", "PGRST202", "PGRST204", "42P01", "42703"].includes(
       error.code,
     )
@@ -798,7 +935,7 @@ app.use((error, req, res, _next) => {
   } else if (error.code === "PGRST116" || error.code === "P0002") {
     status = 404;
     message = "Record not found";
-  } else if (error.code === "40001") {
+  } else if (["40001", "PT409"].includes(error.code)) {
     status = 409;
     message = "This booking changed. Refresh and try again.";
   } else if (error.code === "P0001" || error.code === "23514") {

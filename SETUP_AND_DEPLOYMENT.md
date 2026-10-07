@@ -2,6 +2,8 @@
 
 This is the single, step-by-step guide for this exact project. Follow it in order. Commands labelled **project root** run in `J:\TECH STARTUP GOAL\Multi tenant booking saas`; commands labelled **Backend** or **Frontend** run inside that folder.
 
+**Latest 7 October 2026 update:** the earlier CORS/API-base issue is resolved and the existing production dashboard pages were inspected successfully. The four demo workspaces remain accessible from your existing account. New searchable timezones, account profiles, and simulated checkout/receipt/history features are ready locally. Follow [PDF_REQUIREMENTS_AUDIT.md](docs/PDF_REQUIREMENTS_AUDIT.md), especially section 6, to apply the safe incremental `002_booking_conflict.sql` function patch and deploy both updated folders. The longer manual feature tour remains in [DEMO_WORKFLOW_GUIDE.md](DEMO_WORKFLOW_GUIDE.md).
+
 The intended deployment is:
 
 ```text
@@ -231,11 +233,11 @@ These provider/origin/scope requirements follow the [official Supabase Google se
 
 ### 5C. Know the two different callback addresses
 
-| Address | Configured in | Purpose |
-|---|---|---|
-| `https://qubtwpwdljjoweeasdhn.supabase.co/auth/v1/callback` | Google OAuth authorized redirect URIs | Google returns to Supabase |
-| `http://localhost:5173/auth/callback` | Supabase allowed redirects | Supabase returns to the local frontend |
-| `https://YOUR_FRONTEND.vercel.app/auth/callback` | Supabase allowed redirects after deployment | Supabase returns to the deployed frontend |
+| Address                                                     | Configured in                               | Purpose                                   |
+| ----------------------------------------------------------- | ------------------------------------------- | ----------------------------------------- |
+| `https://qubtwpwdljjoweeasdhn.supabase.co/auth/v1/callback` | Google OAuth authorized redirect URIs       | Google returns to Supabase                |
+| `http://localhost:5173/auth/callback`                       | Supabase allowed redirects                  | Supabase returns to the local frontend    |
+| `https://YOUR_FRONTEND.vercel.app/auth/callback`            | Supabase allowed redirects after deployment | Supabase returns to the deployed frontend |
 
 This frontend uses the Supabase browser SDK's default OAuth session handling. The callback waits for SDK initialization and redirects to the dashboard; you do not need to write a separate backend Google-token exchange or put Google's secret in React.
 
@@ -385,15 +387,15 @@ In Render:
 1. Connect your GitHub account and allow access to this repository.
 2. Select **New → Web Service**, choose the repository, and use these exact project settings:
 
-| Setting | Value |
-|---|---|
-| Name | `steadly-api` or your chosen unique name |
-| Branch | `main` |
-| Runtime / language | Node |
-| Root Directory | `Backend` — capital B |
-| Build Command | `npm ci` |
-| Start Command | `npm start` |
-| Health Check Path | `/api/health/ready` |
+| Setting            | Value                                    |
+| ------------------ | ---------------------------------------- |
+| Name               | `steadly-api` or your chosen unique name |
+| Branch             | `main`                                   |
+| Runtime / language | Node                                     |
+| Root Directory     | `Backend` — capital B                    |
+| Build Command      | `npm ci`                                 |
+| Start Command      | `npm start`                              |
+| Health Check Path  | `/api/health/ready`                      |
 
 Use your desired region and compute plan. The server binds to `0.0.0.0` and reads Render's `PORT`; no fixed external port is required. [Render web-service configuration](https://render.com/docs/web-services)
 
@@ -403,18 +405,18 @@ For an effective always-available booking service, use an always-on instance. Fr
 
 Add these to the Render Web Service environment:
 
-| Variable | Value |
-|---|---|
-| `NODE_VERSION` | `24.14.1` or a supported Node 24 release |
-| `SUPABASE_URL` | `https://qubtwpwdljjoweeasdhn.supabase.co` |
-| `SUPABASE_ANON_KEY` | Anon key from this Supabase project |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key from this Supabase project |
-| `APP_URL` | Initially `http://localhost:5173`, later the exact Vercel origin |
-| `CRON_SECRET` | Your generated cron secret |
-| `BILLING_WEBHOOK_SECRET` | Your generated webhook secret |
-| `BILLING_MODE` | `simulation` |
-| `NOTIFICATION_MODE` | `mock` |
-| `TRUST_PROXY` | `1` for Render's reverse proxy |
+| Variable                    | Value                                                            |
+| --------------------------- | ---------------------------------------------------------------- |
+| `NODE_VERSION`              | `24.14.1` or a supported Node 24 release                         |
+| `SUPABASE_URL`              | `https://qubtwpwdljjoweeasdhn.supabase.co`                       |
+| `SUPABASE_ANON_KEY`         | Anon key from this Supabase project                              |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key from this Supabase project                       |
+| `APP_URL`                   | Initially `http://localhost:5173`, later the exact Vercel origin |
+| `CRON_SECRET`               | Your generated cron secret                                       |
+| `BILLING_WEBHOOK_SECRET`    | Your generated webhook secret                                    |
+| `BILLING_MODE`              | `simulation`                                                     |
+| `NOTIFICATION_MODE`         | `mock`                                                           |
+| `TRUST_PROXY`               | `1` for Render's reverse proxy                                   |
 
 Let Render supply `PORT`; do not copy `PORT=3001` from the local env. No `DATABASE_URL` is needed by this Express service because it uses Supabase's HTTP client. You do not need Stripe or email/SMS provider keys for the included simulation.
 
@@ -449,15 +451,15 @@ Choose **manual creation or Blueprint creation** for these services so you do no
 1. Sign in to Vercel and import the same GitHub repository.
 2. Create the frontend project with:
 
-| Setting | Value |
-|---|---|
-| Framework preset | Vite |
-| Root Directory | `Frontend` — capital F |
-| Production branch | `main` |
-| Install command | `npm ci` |
-| Build command | `npm run build` |
-| Output directory | `dist` |
-| Node.js version | A supported 24.x version, or at least 22.12 |
+| Setting           | Value                                       |
+| ----------------- | ------------------------------------------- |
+| Framework preset  | Vite                                        |
+| Root Directory    | `Frontend` — capital F                      |
+| Production branch | `main`                                      |
+| Install command   | `npm ci`                                    |
+| Build command     | `npm run build`                             |
+| Output directory  | `dist`                                      |
+| Node.js version   | A supported 24.x version, or at least 22.12 |
 
 Selecting `Frontend` as the root ensures Vercel uses its package file and SPA configuration. [Vercel monorepo/root-directory documentation](https://vercel.com/docs/monorepos)
 
@@ -504,14 +506,14 @@ The backend accepts one intentional `APP_URL` origin. A random Vercel preview ad
 
 ### URL reference sheet
 
-| Name | Example / place used |
-|---|---|
-| Frontend origin | `https://YOUR_FRONTEND.vercel.app` → Render APP_URL, Supabase Site URL, Google origin |
-| Backend origin | `https://YOUR_BACKEND.onrender.com` → service base address |
-| API base | `https://YOUR_BACKEND.onrender.com/api` → VITE_API_URL and cron API_URL |
-| Google provider callback | `https://qubtwpwdljjoweeasdhn.supabase.co/auth/v1/callback` → Google redirect URI |
-| App Google callback | `https://YOUR_FRONTEND.vercel.app/auth/callback` → Supabase allowed redirect |
-| Public booking link | `https://YOUR_FRONTEND.vercel.app/booking/YOUR_SLUG` → share with clients |
+| Name                     | Example / place used                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| Frontend origin          | `https://YOUR_FRONTEND.vercel.app` → Render APP_URL, Supabase Site URL, Google origin |
+| Backend origin           | `https://YOUR_BACKEND.onrender.com` → service base address                            |
+| API base                 | `https://YOUR_BACKEND.onrender.com/api` → VITE_API_URL and cron API_URL               |
+| Google provider callback | `https://qubtwpwdljjoweeasdhn.supabase.co/auth/v1/callback` → Google redirect URI     |
+| App Google callback      | `https://YOUR_FRONTEND.vercel.app/auth/callback` → Supabase allowed redirect          |
+| Public booking link      | `https://YOUR_FRONTEND.vercel.app/booking/YOUR_SLUG` → share with clients             |
 
 ## Step 13 — Configure subscription access
 
@@ -543,15 +545,15 @@ The application queues notification jobs when booking/changing appointments. Job
 
 In Render, connect the same Git repository and choose **New → Cron Job**:
 
-| Setting | Value |
-|---|---|
-| Name | `steadly-reminders` |
-| Branch | `main` |
-| Runtime | Node |
-| Root Directory | `Backend` |
-| Schedule | `*/15 * * * *` |
-| Build Command | `npm ci` |
-| Command | `npm run jobs:reminders` |
+| Setting        | Value                    |
+| -------------- | ------------------------ |
+| Name           | `steadly-reminders`      |
+| Branch         | `main`                   |
+| Runtime        | Node                     |
+| Root Directory | `Backend`                |
+| Schedule       | `*/15 * * * *`           |
+| Build Command  | `npm ci`                 |
+| Command        | `npm run jobs:reminders` |
 
 The job script performs a single authenticated HTTP call and exits. It does not start a second Express server.
 
@@ -626,30 +628,30 @@ With your Git integrations/automatic deployments enabled, Vercel and Render depl
 
 ## Step 17 — Troubleshooting reference
 
-| Symptom | What to do |
-|---|---|
-| `PGRST205` on `/me` | Follow Step 1; check project, relations, cache, grants, and restart the intended backend |
-| `PGRST202` / missing function | Check that the complete migration's functions exist; reload cache after function changes |
-| Server environment validation failure | Complete required Render variables; verify secrets are at least 32 characters |
-| Render cannot find package.json | Set Root Directory to `Backend`, respecting capitalization |
-| Vercel cannot build/import | Set Root Directory to `Frontend`, build `npm run build`, output `dist`, and supported Node |
-| CORS failure after deployment | Render APP_URL must equal the final browser origin exactly; redeploy |
-| API client gets HTML instead of JSON | Confirm VITE_API_URL is the backend URL with `/api`; check backend startup and free-service cold start |
-| Google reports redirect_uri_mismatch | In Google, configure the Supabase `/auth/v1/callback` URL, not the app callback |
-| Google returns to the wrong frontend | Correct Supabase Site URL and allowed app `/auth/callback` URLs |
-| Google provider disabled | Enable Google in Supabase and configure its OAuth client credentials |
-| Google denies a testing user | Review Google Auth Platform audience/test-user setup |
-| OAuth callback says no session | Confirm the callback reached the same frontend origin, allowed redirect, and Supabase project; retry login |
-| Email confirmation/recovery absent | Review Supabase SMTP and email settings; this is separate from the app's mock delivery |
-| No booking slots | Active published business/service/provider, provider assignment, enabled hours, provider overrides, future date, blocks, and existing appointments |
-| Booking returns 409 | Reload availability and choose another time; double-booking protection is doing its job |
-| Subscription required | Open Billing and activate the simulation; do not edit subscription rows from the browser |
-| Reminder stays queued | Configure Step 14, verify exact API_URL/secret match, and examine cron run logs |
-| Cron returns 401 | Web service and cron have different CRON_SECRET values |
-| Notification marked simulated but no message received | Expected: the included adapter records mock delivery only |
-| Provider cannot sign in | Providers are schedulable resources, not staff login accounts; owner/admin users sign in |
-| Currency change rejected | Existing bookings require preserving the original currency; configure it before the first appointment |
-| One working-hours change affects old bookings | Existing appointments are retained; deliberately reschedule/cancel affected records |
+| Symptom                                               | What to do                                                                                                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PGRST205` on `/me`                                   | Follow Step 1; check project, relations, cache, grants, and restart the intended backend                                                           |
+| `PGRST202` / missing function                         | Check that the complete migration's functions exist; reload cache after function changes                                                           |
+| Server environment validation failure                 | Complete required Render variables; verify secrets are at least 32 characters                                                                      |
+| Render cannot find package.json                       | Set Root Directory to `Backend`, respecting capitalization                                                                                         |
+| Vercel cannot build/import                            | Set Root Directory to `Frontend`, build `npm run build`, output `dist`, and supported Node                                                         |
+| CORS failure after deployment                         | Render APP_URL must equal the final browser origin exactly; redeploy                                                                               |
+| API client gets HTML instead of JSON                  | Confirm VITE_API_URL is the backend URL with `/api`; check backend startup and free-service cold start                                             |
+| Google reports redirect_uri_mismatch                  | In Google, configure the Supabase `/auth/v1/callback` URL, not the app callback                                                                    |
+| Google returns to the wrong frontend                  | Correct Supabase Site URL and allowed app `/auth/callback` URLs                                                                                    |
+| Google provider disabled                              | Enable Google in Supabase and configure its OAuth client credentials                                                                               |
+| Google denies a testing user                          | Review Google Auth Platform audience/test-user setup                                                                                               |
+| OAuth callback says no session                        | Confirm the callback reached the same frontend origin, allowed redirect, and Supabase project; retry login                                         |
+| Email confirmation/recovery absent                    | Review Supabase SMTP and email settings; this is separate from the app's mock delivery                                                             |
+| No booking slots                                      | Active published business/service/provider, provider assignment, enabled hours, provider overrides, future date, blocks, and existing appointments |
+| Booking returns 409                                   | Reload availability and choose another time; double-booking protection is doing its job                                                            |
+| Subscription required                                 | Open Billing and activate the simulation; do not edit subscription rows from the browser                                                           |
+| Reminder stays queued                                 | Configure Step 14, verify exact API_URL/secret match, and examine cron run logs                                                                    |
+| Cron returns 401                                      | Web service and cron have different CRON_SECRET values                                                                                             |
+| Notification marked simulated but no message received | Expected: the included adapter records mock delivery only                                                                                          |
+| Provider cannot sign in                               | Providers are schedulable resources, not staff login accounts; owner/admin users sign in                                                           |
+| Currency change rejected                              | Existing bookings require preserving the original currency; configure it before the first appointment                                              |
+| One working-hours change affects old bookings         | Existing appointments are retained; deliberately reschedule/cancel affected records                                                                |
 
 ## Step 18 — Final readiness checklist
 

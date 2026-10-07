@@ -163,7 +163,7 @@ declare b uuid;
 begin
  if auth.uid() is null then raise exception 'Authentication required'; end if;
  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text,1));
- if (select count(*) from public.business_members where user_id=auth.uid())>=5 then raise exception 'Maximum five businesses per account'; end if;
+ if (select count(*) from public.businesses where owner_user_id=auth.uid())>=5 then raise exception 'Maximum five businesses created per account'; end if;
  insert into public.businesses(owner_user_id,name,slug,timezone) values(auth.uid(),p_name,p_slug,p_timezone) returning id into b;
  insert into public.business_members(business_id,user_id,role) values(b,auth.uid(),'owner');
  insert into public.subscriptions(business_id,provider_customer_id) values(b,'sim_customer_'||b);
@@ -254,7 +254,7 @@ begin
  select * into a from public.bookings where id=p_booking and business_id=p_business for update;
  if not found then raise exception 'Booking not found' using errcode='P0002'; end if;
  before_row:=a;
- if a.version<>p_version then raise exception 'Booking changed; refresh before retrying' using errcode='40001'; end if;
+ if a.version<>p_version then raise exception 'Booking changed; refresh before retrying' using errcode='PT409'; end if;
  if a.status in ('cancelled','completed','no_show') then raise exception 'Terminal bookings cannot be changed'; end if;
  if p_starts is not null then
   if a.starts_at<=now() then raise exception 'Past appointments cannot be rescheduled'; end if;
