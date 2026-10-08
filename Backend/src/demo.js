@@ -1,7 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { system, result } from "./db.js";
-import { env } from "./config.js";
 
 // Server-owned Auth app_metadata tracks the demo; user_metadata never grants access.
 // Each user gets a separate, ordinary RLS-protected tenant. Never copy real customer data.
@@ -98,16 +96,4 @@ export async function startDemo(user, returnBusinessId) {
   const job = provision(user, returnBusinessId);
   pending.set(user.id, job);
   try { return await job; } finally { pending.delete(user.id); }
-}
-export async function createGuestDemo() {
-  const password = randomBytes(36).toString("base64url");
-  const email = `guest.${randomBytes(16).toString("hex")}@steadly-demo.invalid`;
-  const { data, error } = await system.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { demo_guest: true }, user_metadata: { full_name: "Demo visitor" } });
-  if (error) throw error;
-  const demo = await startDemo(data.user, null);
-  // A separate client keeps the global service-role client free of guest session state.
-  const auth = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-  const login = await auth.auth.signInWithPassword({ email, password });
-  if (login.error) throw login.error;
-  return { demo, session: { access_token: login.data.session.access_token, refresh_token: login.data.session.refresh_token } };
 }

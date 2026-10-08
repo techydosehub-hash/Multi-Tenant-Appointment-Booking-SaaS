@@ -28,8 +28,8 @@ Private requests require `Authorization: Bearer SUPABASE_ACCESS_TOKEN`. Tenant r
 
 | Route | Authentication | Behavior |
 | --- | --- | --- |
-| `POST /demo/guest` | No Authorization header | Empty JSON body. Rate limited to 10 creations/15 minutes/IP/process. Creates a private guest identity and fictional tenant; returns its access/refresh tokens under `data.session` and server-owned demo state under `data.demo`. No password or admin token is returned. |
-| `POST /demo/start` | Verified user JWT | Body `{ "return_business_id": "optional UUID or null" }`. Seeds/resumes this user's separate demo; validates return-workspace membership. No business header required. |
+| `POST /demo/guest` | None | Always returns `403` with "Sign in or create an account to try the demo." Unauthenticated guest demos were removed; the demo is available only to signed-in accounts through `POST /demo/start`. |
+| `POST /demo/start` | Verified user JWT | Body `{ "return_business_id": "optional UUID or null" }`. Seeds/resumes this user's separate demo; validates return-workspace membership. Rejects legacy guest identities with `403`. No business header required. |
 | `POST /demo/exit` | Verified user JWT | Empty body. Hides the demo without deleting it. Returns `guest` and `return_business_id`. Guest clients must sign out; regular clients refresh `/me`. |
 | `GET /me` | Verified user JWT | Includes `demo` and `guest`. Active demos expose only their own demo membership and a fictional profile. Inactive demos are hidden. Older shared owner grants are hidden from the primary account; dedicated fixture owners/admins retain their original sample access. |
 | `GET/PATCH /profile` | Verified user JWT | While demo is active, reads/edits the fictional profile in server-owned demo metadata, leaving actual Auth user profile fields unchanged. |

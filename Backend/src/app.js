@@ -8,7 +8,7 @@ import { env } from "./config.js";
 import { system, userClient, result } from "./db.js";
 import * as v from "./validation.js";
 import { processNotifications } from "./notifications.js";
-import { createGuestDemo, startDemo, demoState, demoProfile, saveDemoState, isGuest, legacyDemoIds } from "./demo.js";
+import { startDemo, demoState, demoProfile, saveDemoState, isGuest, legacyDemoIds } from "./demo.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -242,13 +242,9 @@ publicRouter.post(
 );
 app.use("/api/public", publicRouter);
 
-app.post("/api/demo/guest", rateLimit({
-  windowMs: 15 * 60000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false,
-  handler: (_req, res) => res.status(429).json({ error: { message: "Demo creation is busy. Please try again later, or sign in to use your private demo." } }),
-}), async (req, res) => {
-  if (req.get("authorization")) throw fail(400, "Use your signed-in demo instead");
-  z.object({}).strict().parse(req.body || {});
-  ok(res, await createGuestDemo(), 201);
+// Unauthenticated guest demos were removed. The demo is available only after sign-in.
+app.post("/api/demo/guest", (req, res) => {
+  res.status(403).json({ error: { message: "Sign in or create an account to try the demo.", request_id: req.requestId } });
 });
 
 const portal = express.Router();
@@ -319,6 +315,7 @@ portal.get("/me", async (req, res) => {
   });
 });
 portal.post("/demo/start", async (req, res) => {
+  if (isGuest(req.user)) throw fail(403, "Sign in with your own account to try the demo");
   const b = z.object({ return_business_id: v.id.nullable().optional() }).strict().parse(req.body || {});
   ok(res, await startDemo(req.user, b.return_business_id));
 });

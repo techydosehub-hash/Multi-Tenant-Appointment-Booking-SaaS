@@ -29,15 +29,23 @@ export default function DemoExperience() {
   const [tour, setTour] = useState(null), [complete, setComplete] = useState(false), [confirmExit, setConfirmExit] = useState(false);
   const active = Boolean(demo?.active);
   const key = `steadly_demo_intro_v1:${session?.user.id || "visitor"}`;
-  const eligible = !/^\/(booking\/|auth\/|reset-password)/.test(location.pathname);
+  // Demo entry points are only for a real signed-in account, and only inside the dashboard.
+  const canStart = !loading && Boolean(session) && !guest && location.pathname.startsWith("/dashboard");
   useEffect(() => {
-    const open = () => { setError(null); active ? setTour(0) : setInvite(true); };
+    const open = () => {
+      if (!canStart) return;
+      setError(null);
+      active ? setTour(0) : setInvite(true);
+    };
     window.addEventListener("steadly-demo-open", open);
     return () => window.removeEventListener("steadly-demo-open", open);
-  }, [active]);
+  }, [canStart, active]);
   useEffect(() => {
-    if (!loading && eligible && !active && !localStorage.getItem(key)) setInvite(true);
-  }, [loading, eligible, active, key]);
+    if (canStart && !active && !localStorage.getItem(key)) setInvite(true);
+  }, [canStart, active, key]);
+  useEffect(() => {
+    if (!canStart && !busy) setInvite(false);
+  }, [canStart, busy]);
   useEffect(() => {
     if (!active || tour === null || !business?.slug) return;
     const route = steps[tour][0];
@@ -54,14 +62,9 @@ export default function DemoExperience() {
   async function start() {
     setBusy(true); setError(null);
     try {
+      if (!session) throw new Error("Please sign in or create an account to try the demo.");
       localStorage.setItem(key, "seen");
-      if (session) await api("/demo/start", { method: "POST", body: { return_business_id: businessId || null } });
-      else {
-        const result = await api("/demo/guest", { method: "POST", body: {} });
-        const login = await supabase.auth.setSession(result.session);
-        if (login.error) throw login.error;
-        localStorage.setItem(`steadly_demo_intro_v1:${login.data.user.id}`, "seen");
-      }
+      await api("/demo/start", { method: "POST", body: { return_business_id: businessId || null } });
       if (!await refresh()) throw new Error("Your demo is ready, but we couldn't reconnect. Please retry.");
       setInvite(false); setTour(0); navigate("/dashboard");
     } catch (e) { setError(e); } finally { setBusy(false); }
@@ -86,12 +89,12 @@ export default function DemoExperience() {
   }
   function finish() { setTour(null); setComplete(true); navigate("/dashboard"); }
   return <>
-    {(eligible || active) && <div className={`demo-controls ${active ? "active" : ""}`}>
+    {(active || canStart) && <div className={`demo-controls ${active ? "active" : ""}`}>
       {active ? <><span>Private demo</span><button type="button" onClick={() => setTour(0)}><Play size={15} /> Walkthrough</button><button type="button" onClick={() => { setError(null); setConfirmExit(true); }}><RotateCcw size={15} /> Reset demo</button></> : <DemoButton />}
     </div>}
-    {invite && !active && <Modal title="Get to know Steadly" onClose={busy ? () => {} : dismiss}>
+    {invite && canStart && !active && <Modal title="Get to know Steadly" onClose={busy ? () => {} : dismiss}>
       <p>Start with a private demo to see how everything fits together. You'll find a full calendar, clients, services, a team, and sample payments, with a short guided walkthrough.</p>
-      <p className="fine-print">No signup is needed. Every visitor gets their own workspace. Your real business records stay separate.</p>
+      <p className="fine-print">Your demo lives in its own private workspace with sample records, so your real business data stays untouched.</p>
       <ErrorBox error={error} /><div className="actions"><button className="btn" disabled={busy || !supabase} onClick={start}>{busy ? "Preparing your private demo…" : "Start demo & walkthrough"}<ArrowRight size={16} /></button><button className="btn subtle" disabled={busy} onClick={dismiss}>Maybe later</button></div>
     </Modal>}
     {active && tour !== null && <section className="demo-tour" role="region" aria-label="Guided walkthrough" aria-live="polite">

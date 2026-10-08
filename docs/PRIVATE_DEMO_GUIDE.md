@@ -4,14 +4,14 @@ Implemented locally on 8 October 2026. This guide describes the new visitor demo
 
 ## 1. What the visitor sees
 
-1. Visit the landing page, login, signup, or signed-in dashboard. The first visit offers **Start demo & walkthrough**. **Maybe later** dismisses the suggestion. The **Try demo** button remains available.
-2. Start without signing up, or start from an existing account. Preparation can take several seconds while fictional data is saved to Supabase. Do not close the tab while preparing.
-3. Every visitor receives a different private `[DEMO] Your Studio` workspace. Signed-in accounts reuse their own private demo; guests get a separate automatically provisioned guest account. Visitors never sign into a shared demo account.
+1. The demo is available only after signing in or creating an account. Nothing demo-related appears on the landing, login or signup pages. On the dashboard, the first visit offers **Start demo & walkthrough**. **Maybe later** dismisses the suggestion. The **Try demo** button remains available at the bottom-right of every dashboard screen.
+2. Start from your signed-in account. Preparation can take several seconds while fictional data is saved to Supabase. Do not close the tab while preparing.
+3. Every account receives its own private `[DEMO] Your Studio` workspace. Accounts reuse their own private demo; they never sign into a shared demo account. Unauthenticated guest demo creation was removed: `POST /demo/guest` returns 403 and legacy guest identities are rejected by `POST /demo/start`.
 4. Follow the 12-step walkthrough. Each step opens a real page, explains its purpose, and suggests an action. Back/Next navigate the tour; the close button finishes early. You can use the page while the walkthrough is visible.
 5. At the end, a message explains **Reset demo**. Keep exploring, replay the **Walkthrough**, or reset at any time using the controls at the bottom of the screen.
-6. Reset hides the sample workspace. Existing users return to their previous accessible real workspace, or onboarding if they have none. Guests are signed out and taken to signup, where they can sign in instead. Reset does not delete real records and does not erase the private demo's edits.
+6. Reset hides the sample workspace. Existing users return to their previous accessible real workspace, or onboarding if they have none. Reset does not delete real records and does not erase the private demo's edits.
 
-The suggestion is remembered separately for the current browser visitor and each account. It does not open on normal public customer booking pages, OAuth callbacks, or password-reset pages. Refreshing an active demo retains its data and session. A guest who signs out/reset cannot recover that guest demo without its session; starting again provisions a new one. A guest demo is not transferred into a subsequent real signup.
+The suggestion is remembered separately for each account. It does not open on normal public customer booking pages, OAuth callbacks, or password-reset pages, and it never appears before sign-in. Refreshing an active demo retains its data and session. Any legacy guest session created before this change can still reset out of its demo (and is then signed out to signup), but no new guest demo can be started.
 
 ## 2. Data saved for each new demo
 
@@ -31,7 +31,7 @@ The suggestion is remembered separately for the current browser visitor and each
 | Billing | 1 completed sample checkout and 1 simulated billing event |
 | Profile | Fictional profile, saved separately from actual Auth profile fields |
 
-Appointment dates are anchored to the demo's creation date. Reopening preserves edits and original dates instead of silently moving bookings or reseeding. For a fresh presentation months later, use a new guest session. Actual payments and booking notifications remain simulated, as before.
+Appointment dates are anchored to the demo's creation date. Reopening preserves edits and original dates instead of silently moving bookings or reseeding. For a fresh presentation months later, use a different signed-in account. Actual payments and booking notifications remain simulated, as before.
 
 ## 3. How tenancy and reset work
 
@@ -50,7 +50,7 @@ Appointment dates are anchored to the demo's creation date. Reopening preserves 
 1. Review the changed source files and this guide. Keep `.env`, `.env.demo`, local manifests and private access documents out of Git.
 2. In **Supabase → SQL Editor**, apply `Backend/supabase/migrations/002_booking_conflict.sql` if you have not already applied it. Do not rerun `001_initial.sql` on the existing database.
 3. Apply **`Backend/supabase/migrations/003_private_demo_allowance.sql`**. This prevents guest accounts from directly creating real workspaces through the SQL RPC and excludes a private demo from a normal user's five-business allowance. It replaces one function and preserves existing records, grants and RLS. No new table is required by this demo feature.
-4. Ensure Supabase Email/password sign-in is enabled. The app already uses it for normal login. Guest provisioning creates a random, confirmed Auth identity on the server and signs it in; it sends no signup confirmation email. Supabase anonymous-sign-in does not need to be enabled. Temporary guest passwords are never returned to the browser or written to files; the browser receives only its own session tokens.
+4. Ensure Supabase Email/password sign-in is enabled. The app already uses it for normal login; the demo requires it, because unauthenticated guest provisioning was removed. `POST /api/demo/guest` returns 403 and `POST /api/demo/start` rejects legacy guest identities.
 5. In Render, retain `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Keep `APP_URL` set to your exact frontend origin: `https://multi-tenant-appointment-booking-sa.vercel.app`. Keep the existing job and billing secrets configured. Do not put the service-role key in any Vercel `VITE_` variable.
 6. In Vercel, retain the public Supabase URL/anon key and set `VITE_API_URL=https://steadly-api.onrender.com/api`. Frontend root remains `Frontend`; build command `npm run build`; output directory `dist`. Render root remains `Backend`; install `npm ci`; start `npm start`.
 7. From the project root, inspect `git status` and `git diff`. Stage the feature explicitly:
@@ -67,7 +67,7 @@ Appointment dates are anchored to the demo's creation date. Reopening preserves 
 
 ## 5. Step-by-step presentation
 
-1. Open an incognito window on the deployed landing page and choose **Start demo & walkthrough**.
+1. Open the deployed site, sign in (or create an account), open the dashboard and choose **Start demo & walkthrough**.
 2. Show Overview totals and today's sample appointments. Explain completed revenue is based on completed appointments, not the mock subscription receipt.
 3. Show day/week/month Calendar and a provider filter.
 4. In Bookings, filter by status, provider and date. Open a future confirmed booking, reschedule to a free slot, then cancel it. Open a pending booking and confirm it. Completed/no-show transitions require an appointment to have ended.
@@ -79,16 +79,16 @@ Appointment dates are anchored to the demo's creation date. Reopening preserves 
 10. In Billing, open checkout, choose the declined method, retry with an approved method, and download the simulated receipt. No card details or money are involved. Cancelling the subscription intentionally gates operations; complete a checkout to restore them.
 11. In Profile, edit the sample name. Explain owner/admin permissions come from business membership, not editable profile text. This visitor demo runs as owner; admin permissions can be demonstrated separately using the existing admin demo account after starting/exiting its own demo as appropriate.
 12. Open the public booking page through the final walkthrough step. Select an active service/provider/free slot, enter fictional example.com contact details and submit. Return to Bookings/Clients to show the persisted record. If approval is enabled, confirm the pending request.
-13. Finish the tour, show the reset explanation, then click **Reset demo**. Guests see signup/login; signed-in users return to their own workspace. Explain the sample data is hidden rather than deleted.
+13. Finish the tour, show the reset explanation, then click **Reset demo**. Signed-in users return to their own workspace. Explain the sample data is hidden rather than deleted.
 
 ## 6. Verification and operational limits
 
-The frontend production build and backend JavaScript syntax checks passed. Local browser/API checks using Supabase-backed fictional guest accounts passed: signup-free creation, all 12 tour steps and completion message, 40 persisted clients/184 appointments after refresh, distinct tenant IDs for two guests, cross-tenant API denial, direct RLS returning no foreign client rows, mobile overflow check, guest Reset/logout, and no browser JavaScript errors. A selector mismatch in the first check script was corrected; it was not an application failure.
+The frontend production build and backend JavaScript syntax checks passed. Local browser/API checks passed for the signed-in demo flow: all 12 tour steps and completion message, 40 persisted clients/184 appointments after refresh, cross-tenant API denial, direct RLS returning no foreign client rows, mobile overflow check, and Reset back to the real workspace. Earlier checks also covered the since-removed guest flow (signup-free creation, distinct guest tenants, guest Reset/logout); `POST /demo/guest` now returns 403 and legacy guest identities are rejected by `POST /demo/start`.
 
 Automatic approval review blocked additional checks that signed into a stored demo account, without supplying a detailed reason. Signed-in original-workspace restoration and real-profile preservation are implemented but that additional live check was not completed. Perform step 10 of the release instructions and the Profile/Reset checks below yourself. Migration `003` is prepared but not applied remotely by this work. These local results do not prove that the deployed site has the new commit; repeat the release checks after deploying. See the existing `PDF_REQUIREMENTS_AUDIT.md` for the original project requirements and unrelated remaining limitations.
 
-Guest creation is limited to 10 requests per 15 minutes per IP on each backend process. These limits can affect a group presenting from one shared network; existing signed-in users can reuse their private demo without that guest limit. The limiter is in-memory, so it is not a distributed anti-abuse system.
+Guest creation was removed entirely: `POST /api/demo/guest` returns 403 without creating anything, so there is no guest creation rate to manage. Signed-in users reuse their private demo from the dashboard.
 
-Guest Auth identities and their fictional records are retained after Reset; there is no scheduled guest cleanup or automatic conversion into real accounts in this implementation. Monitor Supabase Auth/database usage. Before high-volume public promotion, add a tenant-scoped retention cleanup job, distributed rate limits and bot protection. Cleanup must delete only verified guest demo tenants and their dependent rows, never real account data. This is a remaining operational enhancement, not something Reset currently does.
+Any guest Auth identities created before this change and their fictional records are retained after Reset; there is no scheduled guest cleanup or automatic conversion into real accounts in this implementation. Monitor Supabase Auth/database usage. Before high-volume public promotion, add a tenant-scoped retention cleanup job, distributed rate limits and bot protection. Cleanup must delete only verified guest demo tenants and their dependent rows, never real account data. This is a remaining operational enhancement, not something Reset currently does.
 
 The SQL allowance patch must be applied in Supabase manually. Local source changes and checks cannot confirm that patch or either hosting deployment has been released.
